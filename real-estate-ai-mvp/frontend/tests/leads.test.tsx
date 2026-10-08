@@ -119,7 +119,7 @@ describe("lead detail related records", () => {
     expect(within(timeline).queryByRole("button", { name: /Show (more|less)/ })).not.toBeInTheDocument();
   });
 
-  it("groups conversation notes and related records on the left, with callbacks on the right", () => {
+  it("gives callbacks a full-width row with related records directly below", () => {
     const { container } = render(
       <MemoryRouter initialEntries={["/leads/12"]}>
         <Routes>
@@ -129,11 +129,14 @@ describe("lead detail related records", () => {
     );
 
     const columns = container.querySelector(".detail-columns");
-    const [left, right] = Array.from(columns?.children ?? []);
+    const [left, right, fullWidth] = Array.from(columns?.children ?? []);
     expect(left).toContainElement(screen.getByRole("heading", { name: "Conversation notes" }));
-    expect(left).toContainElement(screen.getByRole("heading", { name: "Related records" }));
     expect(right).toContainElement(screen.getByRole("heading", { name: "Activity timeline" }));
-    expect(right).toContainElement(screen.getByRole("heading", { name: "Callbacks & scheduled calls" }));
+    expect(fullWidth).toHaveClass("lead-detail-wide");
+    expect(fullWidth).toContainElement(screen.getByRole("heading", { name: "Callbacks & scheduled calls" }));
+    expect(fullWidth).toContainElement(screen.getByRole("heading", { name: "Related records" }));
+    expect(fullWidth.querySelectorAll(":scope > section")[0]).toContainElement(screen.getByRole("heading", { name: "Callbacks & scheduled calls" }));
+    expect(fullWidth.querySelectorAll(":scope > section")[1]).toContainElement(screen.getByRole("heading", { name: "Related records" }));
   });
 
   it("shows one related-record section at a time and lets people switch sections", async () => {

@@ -508,6 +508,9 @@
   .detail-columns {
     @apply grid grid-cols-1 xl:grid-cols-[1.65fr_1fr] gap-6;
   }
+  .lead-detail-wide {
+    @apply min-w-0 space-y-6 xl:col-span-2;
+  }
   .lead-related-tabs {
     @apply flex overflow-x-auto border-b border-[#eef1ee] px-4;
   }

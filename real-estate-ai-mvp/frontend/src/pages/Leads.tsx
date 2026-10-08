@@ -412,11 +412,13 @@ export function LeadDetail() {
                 </article>
               ))}
             </section>
-            <LeadRelatedRecords lead={d} />
           </div>
           <div className="min-w-0 space-y-6">
             <ActivityTimeline key={id} activities={list(d.activities)} />
+          </div>
+          <div className="lead-detail-wide">
             <LeadCallbacks lead={d} />
+            <LeadRelatedRecords lead={d} />
           </div>
         </div>
       </Async>
