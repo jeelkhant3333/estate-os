@@ -8,3 +8,4 @@ data/runtime
 tests
 scripts
 *.zip
+**/* 2.*

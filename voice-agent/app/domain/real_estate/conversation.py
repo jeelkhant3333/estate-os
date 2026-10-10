@@ -204,7 +204,7 @@ class RealEstateConversation:
         s.caller_asked_repeat = bool(_REPEAT.search(text))
         mentioned = self.mentioned_project(text)
         if mentioned is not None:
-            s.focus_project_id = str(mentioned["id"])
+            s.focus_project_id, s.focus_project_name = str(mentioned["id"]), mentioned["name"]
         self._check_budget(text)
         if wants_dnc(text):
             self.background(self.mark_dnc("explicit request on the call"))

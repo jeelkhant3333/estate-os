@@ -146,8 +146,18 @@ class ToolBox:
         return self.c.plugin.resolve_project(name)
 
     def _unknown_project(self, name: str) -> ToolOutcome:
-        known = [p["name"] for p in (self.c.plugin.catalog or {}).get("projects", [])][:12]
-        return ToolOutcome({"error": "unknown_project", "asked": name, "projects_we_sell": known})
+        """A project with no visit calendar. Never offer another project in its place: the caller asked for
+        this one, and booking a different one is worse than booking none."""
+        request = f"Wants a site visit to {name}"[:300]
+        if request not in self.s.unanswered:
+            self.s.unanswered.append(request)
+        if "UNANSWERED" not in self.s.escalations:
+            self.s.escalations.append("UNANSWERED")
+        self.s.handover_reason = self.s.handover_reason or "UNANSWERED"
+        return ToolOutcome({"error": "no_visit_calendar", "project": name,
+                            "instruction": f"Visits for {name} cannot be booked on this call. Do not offer or book "
+                                           "any other project instead. Tell the caller our property expert will "
+                                           "call them to fix the visit, and ask for a convenient time."})
 
     async def _lead_id(self) -> str | None:
         if self.s.lead_id:
@@ -185,18 +195,25 @@ class ToolBox:
     # ---------------------------------------------------------------- visits
 
     def _off_focus(self, project: dict[str, Any]) -> ToolOutcome | None:
-        """Visits are only for the project the caller is talking about, unless they just named another."""
+        """A visit for a project other than the one the caller has been talking about is confirmed with the
+        caller first. The model is never steered to the earlier project: that booked the wrong one."""
         focus = self.s.focus_project_id
         if not focus or str(project["id"]) == focus:
             return None
         named = self.c.mentioned_project(self.s.last_caller_text)
         if named is not None and str(named["id"]) == str(project["id"]):
+            self.s.focus_project_id, self.s.focus_project_name = str(project["id"]), project["name"]
             return None
+        if self.s.project_confirmed == str(project["id"]):
+            self.s.focus_project_id, self.s.focus_project_name = str(project["id"]), project["name"]
+            return None
+        self.s.project_confirmed = str(project["id"])
         current = next((p["name"] for p in (self.c.plugin.catalog or {}).get("projects", []) if str(p["id"]) == focus),
-                       "the project they asked about")
-        return ToolOutcome({"error": "not_the_callers_project", "callerIsAskingAbout": current,
-                            "instruction": f"The caller is talking about {current}. Offer or book a visit only for "
-                                           f"{current}, unless they ask about another project."})
+                       "the earlier project")
+        return ToolOutcome({"error": "confirm_project", "asked": project["name"], "earlier": current,
+                            "instruction": f"Ask the caller in one short question whether the visit is for "
+                                           f"{project['name']} or {current}, then use the one they say. "
+                                           "Do not choose for them."})
 
     async def get_visit_slots(self, a: SlotArgs) -> ToolOutcome:
         project = self._project(a.project)

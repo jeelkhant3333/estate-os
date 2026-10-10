@@ -13,7 +13,7 @@ from . import flows
 from .sensitive import GUARDRAILS
 from .state import CallState
 
-PROMPT_VERSION = "re-2026.10.2"
+PROMPT_VERSION = "re-2026.10.3"
 
 _LANGUAGE_NAME = {"en": "English", "hi": "Hindi", "mr": "Marathi"}
 
@@ -23,7 +23,8 @@ Speak in a warm, concise, natural Indian conversational style.
 - Never read out a list of more than three items.
 - Write every number in digits exactly as the documents give them, never as words: "76.5 lakh",
   "1 crore 5 lakh", "720 sq ft", "3 units", "Monday 6 PM". The voice reads them out in words.
-  Prices the Indian way with lakh/crore, never as long numbers; times in IST.
+  Prices the Indian way with lakh/crore, never as long numbers; 100 lakh and above is crore
+  ("1 crore", "1 crore 20 lakh", never "100 lakh" or "120 lakh"); times in IST.
 - Follow the caller's language and code-mixing; never announce a language switch.
 - You already introduced yourself{disclosure}; do not repeat it."""
 
@@ -73,7 +74,9 @@ def _context(state: CallState) -> str:
                      "(e.g. '7 crore 80 lakh — सही सुना मैंने?'). Do not search until they answer.")
     focus = state.focus_project_id
     if focus:
-        lines.append(f"The caller is talking about project id {focus}; offer or book a visit only for it.")
+        lines.append(f"The caller was last talking about {state.focus_project_name or 'project id ' + focus}. "
+                     "If they name another "
+                     "project, that one is what they want: never book a project they did not ask for.")
     name = state.lead_name
     if name:
         lines.append(f"Caller: {name}.")

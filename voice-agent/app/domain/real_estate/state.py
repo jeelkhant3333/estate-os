@@ -92,6 +92,8 @@ class CallState:
     visit_offers: int = 0
     # The project the caller is talking about; visits are offered and booked only for it.
     focus_project_id: str | None = None
+    focus_project_name: str | None = None
+    project_confirmed: str | None = None  # a visit project the caller was asked to confirm
     last_caller_text: str = ""
     # Sentences already spoken (normalised), so none is said twice unless the caller asks.
     spoken: list[str] = field(default_factory=list)

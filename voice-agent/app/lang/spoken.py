@@ -6,6 +6,7 @@ Marathi and Hindi number words must be reviewed by native speakers (TTS gate C7)
 
 from __future__ import annotations
 
+import re
 from datetime import date, time
 
 from app.lang.languages import Lang
@@ -203,3 +204,22 @@ def time_words(t: time, lang: Lang) -> str:
             return f"{part} {integer_words(h12, lang)} वाजून {integer_words(m, lang)} मिनिटांनी"
         return f"{part} {integer_words(h12, lang)} बजकर {integer_words(m, lang)} मिनट पर"
     return f"{part} {core} {suffix}"
+
+
+_DEV_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+_OVER_100_LAKH = re.compile(r"(?<![\d.,])(\d{3,}(?:\.\d+)?)\s*(lakhs?|lacs?|लाख)(?![A-Za-z])", re.I)
+
+
+def crore_not_lakh(text: str, lang: Lang) -> str:
+    """'100 lakh' is said '1 crore', '120 लाख' is '1 करोड़ 20 लाख': nobody prices a flat in hundreds of lakh."""
+    def fix(m: re.Match[str]) -> str:
+        lakh = float(m.group(1))
+        crore, rest = divmod(lakh, 100)
+        rest_s = f"{rest:.2f}".rstrip("0").rstrip(".")
+        devanagari = m.group(2) == "लाख"
+        crore_word = ("कोटी" if lang == "mr" else "करोड़") if devanagari else "crore"
+        lakh_word = "लाख" if devanagari else "lakh"
+        return f"{int(crore)} {crore_word}" + (f" {rest_s} {lakh_word}" if rest else "")
+    if not text:
+        return text
+    return _OVER_100_LAKH.sub(fix, text.translate(_DEV_DIGITS))

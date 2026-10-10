@@ -26,6 +26,7 @@ from app.conversation.turn_detection import TurnConfig, TurnDetector
 from app.domain.base import (CallerTurnAction, CallInfo, CallRecord, Conversation, PhraseBook, Tool,
                              ToolOutcome)
 from app.lang.devanagari import to_devanagari_speech
+from app.lang.spoken import crore_not_lakh
 from app.lang.languages import Lang, LanguageTracker, is_noise, to_devanagari_script
 from app.lang.redaction import redact
 from app.llm.base import Message, TextDelta, ToolCall, ToolCallReady, Usage
@@ -130,6 +131,7 @@ class CallSession:
     # ---- speech out
 
     def _spoken(self, text: str, lang: Lang) -> str:
+        text = crore_not_lakh(text, lang)
         return (to_devanagari_speech(text, lang, self.deps.phrases.names)
                 if self.deps.devanagari_speech else text)
 
@@ -316,7 +318,7 @@ class CallSession:
         finally:
             if reply:
                 working.append(Message("assistant", reply))
-                self.transcript.append({"speaker": "agent", "text": reply})
+                self.transcript.append({"speaker": "agent", "text": crore_not_lakh(reply, lang)})
                 self.conversation.on_agent_reply(reply)
             self._exchanges.append(working)
 

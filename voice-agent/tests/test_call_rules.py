@@ -47,9 +47,30 @@ def test_visit_slots_only_for_the_project_the_caller_is_talking_about():
     c = _conversation()
     c.screen_caller("Baner वाला project बताइए, visit करना है", "hi")
     other = asyncio.run(c.toolbox.get_visit_slots(SlotArgs(project="Mula Vista"))).content
-    assert other["error"] == "not_the_callers_project" and other["callerIsAskingAbout"] == "Sahyadri Grove"
+    assert other["error"] == "confirm_project"
+    assert (other["asked"], other["earlier"]) == ("Mula Vista", "Sahyadri Grove")
     same = asyncio.run(c.toolbox.get_visit_slots(SlotArgs(project="Sahyadri Grove"))).content
     assert "error" not in same
+
+
+def test_a_visit_for_another_project_is_never_swapped_for_the_earlier_one():
+    """The caller moved on to another project: once confirmed, the visit is for that one."""
+    c = _conversation()
+    c.screen_caller("Baner वाला project बताइए", "hi")
+    asked = asyncio.run(c.toolbox.get_visit_slots(SlotArgs(project="Mula Vista", preferred_day="Saturday"))).content
+    assert asked["error"] == "confirm_project" and "Do not choose" in asked["instruction"]
+    c.screen_caller("हाँ, वही दूसरा वाला", "hi")
+    again = asyncio.run(c.toolbox.get_visit_slots(SlotArgs(project="Mula Vista", preferred_day="Saturday"))).content
+    assert "error" not in again and again["project"] == "Mula Vista"
+    assert c.state.focus_project_name == "Mula Vista"
+
+
+def test_a_project_without_a_calendar_is_not_replaced_by_another():
+    c = _conversation()
+    out = asyncio.run(c.toolbox.get_visit_slots(SlotArgs(project="Palm Meadows Tower"))).content
+    assert out["error"] == "no_visit_calendar" and "projects_we_sell" not in out
+    assert "Do not offer or book any other project" in out["instruction"]
+    assert "Wants a site visit to Palm Meadows Tower" in c.state.unanswered
 
 
 def test_a_far_off_budget_is_confirmed_before_searching():
