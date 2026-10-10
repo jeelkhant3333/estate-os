@@ -14,7 +14,7 @@ def _visit_stage(**kw) -> CallState:
 
 
 def test_first_the_visit_is_offered():
-    assert "Offer a site visit once" in flows.goal(_visit_stage())
+    assert "A site visit is optional" in flows.goal(_visit_stage())
 
 
 def test_after_times_were_offered_riya_stops_selling():
@@ -31,3 +31,15 @@ def test_what_jeel_said_is_recognised_as_details_first():
                  "अभी नहीं, बाद में", "first tell me the price"):
         assert _DEFER.search(said), said
     assert _BOOKING.search("site visit book कर दो")
+
+
+def test_a_yes_to_rias_visit_question_counts_as_asking_for_a_visit():
+    from app.domain.real_estate.conversation import _VISIT_QUESTION, _YES
+    assert _VISIT_QUESTION.search("क्या आप site visit करना चाहेंगे?")
+    assert _YES.search("हां जी कर दीजिए") and _YES.search("ok") and not _YES.search("नहीं, पहले details")
+    assert not _VISIT_QUESTION.search("Greenleaf में clubhouse और gym है।")
+
+
+def test_after_asking_once_without_a_yes_the_visit_is_dropped():
+    assert flows.goal(_visit_stage(visit_offers=1)) == flows.VISIT_DEFERRED
+    assert flows.goal(_visit_stage(visit_offers=1, asked_to_book=True)) != flows.VISIT_DEFERRED

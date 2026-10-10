@@ -1451,6 +1451,9 @@ public class EstateService {
     metrics.put("availableUnits", count(ws, "units", "AVAILABLE"));
     metrics.put("siteVisitsBooked", count(ws, "appointments", null));
     metrics.put("callsHandled", count(ws, "voice_sessions", null));
+    long callSeconds = callSeconds(ws);
+    metrics.put("totalCallSeconds", callSeconds);
+    metrics.put("totalCallMinutes", Math.round(callSeconds / 60.0));
     var upcoming =
         repo.sql()
             .query(
@@ -1532,6 +1535,18 @@ public class EstateService {
               "read",
               false),
           fields("user_id", recipient, "status", "SCHEDULED"));
+  }
+
+  /** Talk time across every recorded call; the agent stores each call's length in data.durationSeconds. */
+  private long callSeconds(Long ws) {
+    return Objects.requireNonNull(
+        repo.sql()
+            .queryForObject(
+                "SELECT COALESCE(round(sum((data->>'durationSeconds')::numeric)),0) FROM voice_sessions"
+                    + " WHERE workspace_id=:ws AND deleted_at IS NULL"
+                    + " AND data->>'durationSeconds' ~ '^[0-9]+(\\.[0-9]+)?$'",
+                Map.of("ws", ws),
+                Long.class));
   }
 
   private long count(Long ws, String table, String state) {

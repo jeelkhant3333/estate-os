@@ -18,7 +18,7 @@ SECRETS = {
     "admin-token": "VOICE_AGENT_API_KEY",
     "sarvam-key": "SARVAM_API_KEY",
     "deepgram-key": "DEEPGRAM_API_KEY",
-    "rumik-key": "RUMIK_API_KEY",
+    "gnani-key": "GNANI_API_KEY",
     "voicelink-password": "VOICE_LINK_PASSWORD",
     "voicelink-webhook-token": "VOICE_LINK_WEBHOOK_TOKEN",
     "rag-voice-token": "RAG_VOICE_TOKEN",
@@ -30,7 +30,7 @@ SECRET_ENV = {
     "CRM_SERVICE_PASSWORD": "crm-service-password",
     "SARVAM_API_KEY": "sarvam-key",
     "DEEPGRAM_API_KEY": "deepgram-key",
-    "RUMIK_API_KEY": "rumik-key",
+    "GNANI_API_KEY": "gnani-key",
     "VOICE_LINK_PASSWORD": "voicelink-password",
     "VOICE_LINK_WEBHOOK_TOKEN": "voicelink-webhook-token",
     "RAG_VOICE_TOKEN": "rag-voice-token",
@@ -69,13 +69,23 @@ PLAIN = {
     "SARVAM_LLM_RATE_LIMIT_PER_MIN": "120",
     "SARVAM_STT_API": "streaming",
     "SARVAM_TTS_SPEAKER": "ishita",
-    "RUMIK_MODEL": "mulberry",
-    "RUMIK_SPEED": "1.2",
     "NOVA3_FLOOR_PASSED": "false",
     "VOICE_LINK_CAPTURE_MESSAGES": "20",
     # Which TTS engine actually speaks. The code default is sarvam_streaming, so leaving this
     # unset silently swaps the voice for a different engine than the one tuned locally.
     "TTS_PRIMARY": "sarvam_streaming",
+    # Which STT listens: sarvam (default) or deepgram.
+    "STT_PRIMARY": "sarvam",
+    # Gnani experiment (STT_PRIMARY=gnani, TTS_PRIMARY=gnani, LLM_PROVIDER=gnani); Sarvam stays fallback.
+    "LLM_PROVIDER": "sarvam",
+    "GNANI_TTS_VOICE_HI": "Nalini",
+    "GNANI_TTS_VOICE_MR": "Zahira",
+    "GNANI_TTS_VOICE_EN": "Kaveri",
+    "GNANI_TTS_SPEED": "1.0",
+    "GNANI_STT_MIN_SILENCE_MS": "500",
+    "GNANI_LLM_BASE_URL": "",
+    "GNANI_LLM_MODEL": "",
+    "GNANI_LLM_AUTH_HEADER": "Authorization",
     "SARVAM_TTS_MODEL": "bulbul:v3",
     "SARVAM_TTS_PACE": "1.0",
     # Speech recognition tuning.

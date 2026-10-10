@@ -65,7 +65,7 @@ Re-running `./deploy.sh` is safe. To ship code changes only:
 `PROVIDER_MODE=fake` deploys a working system that places no calls and needs no provider keys —
 use it to check the wiring end to end. For real calls:
 
-1. Put the Sarvam, Deepgram and Rumik keys plus the VoiceLink credentials in `azure.env`.
+1. Put the Sarvam and Deepgram keys plus the VoiceLink credentials in `azure.env`.
 2. Set `PROVIDER_MODE=live`.
 3. `./deploy.sh images`
 4. In the VoiceLink console, point the websocket bot at the printed

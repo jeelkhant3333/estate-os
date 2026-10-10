@@ -678,6 +678,25 @@ class ApiIntegrationTest {
   }
 
   @Test
+  void voiceUnitSearchPutsOptionsWithinBudgetBeforeNearMisses() throws Exception {
+    JsonNode all = send("POST", "/voice/units/search", Map.of("limit", 20), token, ws, 200);
+    // A budget just above the cheapest option: everything up to 10% over it may still be offered.
+    java.math.BigDecimal budget = all.get("matches").get(0).get("priceMinInr").decimalValue()
+        .add(new java.math.BigDecimal("1"));
+    JsonNode matches =
+        send("POST", "/voice/units/search", Map.of("budgetInr", budget, "limit", 20), token, ws, 200)
+            .get("matches");
+    assertTrue(matches.size() > 0);
+    boolean seenOver = false;
+    for (JsonNode m : matches) {
+      boolean within = m.get("priceMinInr").decimalValue().compareTo(budget) <= 0;
+      assertEquals(within, m.get("withinBudget").asBoolean(), "withinBudget flag is wrong");
+      if (!within) seenOver = true;
+      else assertFalse(seenOver, "an option over budget was ranked above one within it");
+    }
+  }
+
+  @Test
   void voiceAvailabilityAndPriceComeFromLiveStock() throws Exception {
     JsonNode match =
         send("POST", "/voice/units/search", Map.of("limit", 1), token, ws, 200).get("matches").get(0);

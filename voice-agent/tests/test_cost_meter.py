@@ -75,3 +75,10 @@ def test_a_probe_reports_its_usage_for_the_live_calls():
                      on_usage=seen.append)
     assert asyncio.run(probe.run_once()) is True
     assert seen and seen[0].prompt_tokens == 201 and seen[0].completion_tokens == 8
+
+
+def test_prices_come_from_settings():
+    """The path the call-end code takes (a misplaced cache decorator once broke it on a live call)."""
+    from app.config import Settings, cost_prices
+    p = cost_prices(Settings(cost_tts_per_1k_chars=2.5))
+    assert p.tts_per_1k_chars == 2.5 and p.llm_input_per_m == 29.28 and p.currency == "INR"

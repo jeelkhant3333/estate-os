@@ -17,7 +17,8 @@ from app.lang.languages import Lang
 from app.llm.base import Message, ToolSpec
 
 # Phrase keys the engine itself speaks. Every PhraseBook must render these in every language.
-ENGINE_PHRASES: tuple[str, ...] = ("thinking", "silence_prompt", "still_there", "closing", "transfer")
+ENGINE_PHRASES: tuple[str, ...] = ("thinking", "silence_prompt", "still_there", "closing", "transfer",
+                                   "no_answer")
 
 
 class PhraseBook(Protocol):

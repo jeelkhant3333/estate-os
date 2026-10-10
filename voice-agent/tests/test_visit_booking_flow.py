@@ -15,6 +15,7 @@ def _toolbox():
     plugin = SimpleNamespace(crm=crm, catalog=catalog,
                              resolve_project=lambda name: projects.get(name.lower()))
     state = CallState(call_type="OUTBOUND_NEW_LEAD", phone="+919800000001")
+    state.wants_visit_now = True  # the caller has asked for a visit
     return ToolBox(SimpleNamespace(plugin=plugin, state=state)), state
 
 
@@ -22,6 +23,7 @@ def test_a_repeated_slot_request_still_carries_bookable_slots():
     box, state = _toolbox()
     first = asyncio.run(box.get_visit_slots(SlotArgs(project="Sahyadri Grove"))).content
     assert first["slots"]
+    state.wants_visit_now = False  # a later turn that did not ask about the visit
     again = asyncio.run(box.get_visit_slots(SlotArgs(project="Sahyadri Grove"))).content
     assert "alreadyOffered" in again and again["alreadyOffered"][0]["slot_start"]
     booked = asyncio.run(box.book_site_visit(BookArgs(project="Sahyadri Grove",
@@ -41,3 +43,12 @@ def test_a_wrong_slot_comes_back_with_the_valid_ones():
     asyncio.run(box.get_visit_slots(SlotArgs(project="Sahyadri Grove")))
     refused = asyncio.run(box.book_site_visit(BookArgs(project="Sahyadri Grove", slot_start="2030-01-01T10:00:00Z"))).content
     assert refused["error"] == "slot_not_offered" and refused["offered"][0]["slot_start"]
+
+
+def test_show_me_a_project_does_not_fetch_visit_times():
+    box, state = _toolbox()
+    state.wants_visit_now = False  # "Baner वाले में दिखाइए": about the project, not a visit
+    refused = asyncio.run(box.get_visit_slots(SlotArgs(project="Sahyadri Grove"))).content
+    assert "slots" not in refused and refused["visitTimesLookedUp"] is False
+    assert "Never say no slots are available" in refused["instruction"]
+    assert state.offered_slots == {}

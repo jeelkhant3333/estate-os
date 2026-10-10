@@ -33,11 +33,12 @@ GOALS = {
     "DELTA": "Ask what has changed since the last conversation and update only that.",
     "QUALIFY": "Fill the missing requirements naturally, one question per turn, never as an interrogation. "
                "Read critical values back once and record the outcome with save_requirements(readback=…).",
-    "RECOMMEND": "Use search_properties (or get_price for a named project) and recommend at most two options "
-                 "that are available, in their budget.",
-    "VISIT": "Offer a site visit once: get_visit_slots, offer two or three times, book the one they pick with "
-             "book_site_visit, then confirm project, day, time and the agent's name aloud. If they want details "
-             "first, give them; do not insist.",
+    "RECOMMEND": "Look up options in the documents (ask_knowledge) and recommend at most two that fit "
+                 "their budget, as the documents describe them.",
+    "VISIT": "A site visit is optional. If the caller sounds interested in a project, ask once whether they "
+             "would like to see it; if they agree, get_visit_slots for that project, offer two or three times, "
+             "book the one they pick with book_site_visit and confirm project, day, time and the agent's name. "
+             "If they do not agree, drop it and answer their questions.",
     "REMIND": "Remind them of the visit: project, day and time, address and the agent meeting them.",
     "RESOLVE": "Confirm the visit (confirm_visit), or reschedule it (get_visit_slots, then reschedule_visit), "
                "or cancel it (ask why, offer a later date, cancel_visit).",
@@ -57,7 +58,8 @@ VISIT_DEFERRED = ("The caller wants information before deciding on a visit. Answ
 
 def goal(state: CallState) -> str:
     if state.stage == "VISIT" and not state.booked_visit:
-        if state.visit_deferred:
+        asked_without_yes = state.visit_offers >= 1 and not (state.asked_to_book or state.slots_offered_for)
+        if state.visit_deferred or asked_without_yes:
             return VISIT_DEFERRED
         if state.slots_offered_for:
             return VISIT_OFFERED

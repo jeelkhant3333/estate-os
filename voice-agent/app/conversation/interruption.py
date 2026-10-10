@@ -6,6 +6,8 @@ counts (the session bypasses this detector in READBACK_LISTENING).
 
 from __future__ import annotations
 
+import re
+
 from enum import StrEnum
 
 from app.lang.languages import is_noise
@@ -15,6 +17,15 @@ BACKCHANNELS = frozenset({
     "hmm", "hm", "hmmm", "हं", "हम्म", "हम", "हूं", "हूँ", "haan", "han", "हां", "हाँ", "हो", "ho",
     "ok", "okay", "ओके", "acha", "achha", "अच्छा", "right", "बरं", "bara", "yes", "उह", "जी", "ji",
 })
+
+
+# Thinking sounds on their own: the caller is still deciding, not answering.
+_HESITATION = re.compile(r"^(?:\W*(?:ह+म+|हम्+|हम्म+|उ+म्*|उम्+|अ+ह*|अं+|आ+|ए+ं*|एं+|hm+|h+m+|u+m+|uh+|ah+|er+m*|mm+)\W*)+$", re.I)
+
+
+def is_hesitation(text: str) -> bool:
+    """'हम', 'उम्', 'हम्म… अ', 'hmm': a pause filler, not an answer to reply to."""
+    return bool(text and text.strip() and _HESITATION.match(text.strip()))
 
 
 def is_backchannel(text: str) -> bool:

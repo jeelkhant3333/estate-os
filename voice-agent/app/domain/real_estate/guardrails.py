@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .money import _DEV_DIGITS, CRORE, LAKH, amounts_in
+from .money import _DEV_DIGITS, CRORE, LAKH, amounts_in, caller_amounts, words_to_digits
 
 _DNC = re.compile(
     r"(do\s*n[o']?t\s+call|don'?t\s+call|stop\s+calling|never\s+call|remove\s+my\s+number|"
@@ -85,7 +85,15 @@ class PriceGuard:
         self.evidence.update(amounts_in(text))
         self.numbers.update(numbers_in(text))
 
-    def add_result(self, value: Any) -> None:
+    def add_caller_text(self, text: str) -> None:
+        """The caller's own words: their figures may be read back, also when spoken as words
+        ("साठ से अस्सी लाख") and both ends of a range."""
+        self.evidence.update(caller_amounts(text))
+        self.numbers.update(numbers_in(words_to_digits(text)))
+
+    def add_result(self, value: Any, prices: bool = True) -> None:
+        """Record a tool result as evidence. prices=False (documents): its numbers may support an
+        area or count, never a rupee amount."""
         def walk(node: Any, key: str = "") -> None:
             if isinstance(node, dict):
                 for k, v in node.items():
@@ -94,9 +102,14 @@ class PriceGuard:
                 for v in node:
                     walk(v, key)
             elif isinstance(node, str):
-                self.add_text(node)
+                if prices:
+                    self.add_text(node)
+                else:
+                    self.numbers.update(numbers_in(node))
             elif isinstance(node, (int, float)) and not isinstance(node, bool):
                 self.numbers.add(int(round(node)))
+                if not prices:
+                    return
                 lowered = key.lower()
                 if any(word in lowered for word in ("inr", "price", "amount", "budget", "charge")) and node >= 1:
                     self.evidence.add(int(round(node)))
@@ -114,6 +127,8 @@ class PriceGuard:
         return False
 
     def unsupported(self, sentence: str) -> list[int]:
+        # Riya writes numbers as words ("साढ़े छिहत्तर लाख", "सात सौ बीस"); read them as figures.
+        sentence = words_to_digits(sentence)
         return [a for a in amounts_in(sentence) if not self.supported(a)] + self.unsupported_areas(sentence)
 
     def unsupported_areas(self, sentence: str) -> list[int]:

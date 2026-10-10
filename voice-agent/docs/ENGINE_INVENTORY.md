@@ -62,7 +62,6 @@ means the only changed line is the import.
 | `app/tts/base.py` | ENGINE | Import only. Failover TTS. |
 | `app/tts/cache.py` | COUPLED | `app/tts/cache.py` — imported the bank's phrase module; now takes the domain's `PhraseBook`. Preload/warm behaviour unchanged. |
 | `app/tts/fake.py` | ENGINE | Import only. |
-| `app/tts/rumik.py` | ENGINE | Import only. |
 | `app/tts/sarvam_streaming.py` | ENGINE (+gu) | Import plus `gu: gu-IN` in the language codes. Speaker (`ishita`), pace, gain and buffering unchanged. |
 | `app/wiring.py` | COUPLED | `app/wiring.py` — no longer loads a knowledge base; builds the engine, then hands `EngineServices` to the domain plugin. |
 | all `__init__.py` | ENGINE | |

@@ -100,30 +100,45 @@ class Container:
                 language_code=s.sarvam_stt_streaming_language_code, mode=s.sarvam_stt_mode,
                 high_vad_sensitivity=s.sarvam_stt_high_vad_sensitivity)
 
-        def fallback():
-            return DeepgramSTT(s.deepgram_api_key, language=language)
+        def deepgram():
+            # Nova-3 has no Hindi-only streaming model worth using on calls; its multilingual mode
+            # handles Hindi with English mixed in. Marathi and English are monolingual.
+            code = {"hi": "multi", "mr": "mr", "en": "en"}.get(language, "multi")
+            return DeepgramSTT(s.deepgram_api_key, s.deepgram_model, language=code)
 
-        return primary, fallback
+        def gnani():
+            from app.stt.gnani import GnaniSTT
+            code = {"hi": "hi-IN", "mr": "mr-IN", "en": "en-IN"}.get(language, "hi-IN")
+            return GnaniSTT(s.gnani_api_key, code, s.gnani_stt_url, s.gnani_stt_min_silence_ms,
+                            s.gnani_stt_vad_threshold)
+
+        if s.stt_primary == "gnani" and s.gnani_api_key:
+            return gnani, primary
+        if s.stt_primary == "deepgram" and s.deepgram_api_key:
+            return deepgram, primary
+        return primary, deepgram
 
     def new_tts(self) -> FailoverTTS:
         s = self.settings
         if s.provider_mode == "fake":
             return FailoverTTS(SilenceTTS("silence_primary"), SilenceTTS("silence_fallback"))
-        from app.tts.rumik import RumikTTS
         from app.tts.sarvam_streaming import SarvamStreamingTTS
 
-        bulbul = SarvamStreamingTTS(s.sarvam_api_key, s.sarvam_tts_ws_url, s.sarvam_tts_model,
-                                    s.sarvam_tts_speaker, s.sarvam_tts_pace,
-                                    s.sarvam_tts_preprocessing)
-        if s.tts_primary == "rumik" and s.rumik_api_key:
-            rumik = RumikTTS(s.rumik_api_key, s.rumik_base_url, s.rumik_model,
-                             s.rumik_voice_description, s.rumik_speaker)
-            return FailoverTTS(rumik, bulbul)
-        # Bulbul primary, Rumik behind it when a key is configured.
-        if s.rumik_api_key:
-            return FailoverTTS(bulbul, RumikTTS(s.rumik_api_key, s.rumik_base_url, s.rumik_model,
-                                                s.rumik_voice_description, s.rumik_speaker))
-        return FailoverTTS(bulbul, bulbul)
+        def bulbul_tts() -> SarvamStreamingTTS:
+            return SarvamStreamingTTS(s.sarvam_api_key, s.sarvam_tts_ws_url, s.sarvam_tts_model,
+                                      s.sarvam_tts_speaker, s.sarvam_tts_pace,
+                                      s.sarvam_tts_preprocessing)
+
+        bulbul = bulbul_tts()
+        if s.tts_primary == "gnani" and s.gnani_api_key:
+            from app.tts.gnani import GnaniTTS
+            gnani = GnaniTTS(s.gnani_api_key, {"hi": s.gnani_tts_voice_hi, "mr": s.gnani_tts_voice_mr,
+                                               "en": s.gnani_tts_voice_en}, s.gnani_tts_model, s.gnani_tts_speed,
+                             s.gnani_tts_url)
+            return FailoverTTS(gnani, bulbul)
+        # The fallback is Bulbul again on its own socket: a stalled connection is replaced, and the
+        # caller keeps hearing the same voice for the whole call.
+        return FailoverTTS(bulbul, bulbul_tts())
 
     def track(self, task) -> None:
         """Keep a reference to fire-and-forget work so it is not garbage-collected mid-flight."""
@@ -190,7 +205,14 @@ def build_container(settings: Settings, plugin_factory: PluginFactory | None = N
         primary: Any = SarvamLLM(settings.sarvam_api_key, settings.llm_primary_model,
                                  settings.sarvam_base_url, settings.reasoning_effort)
         fallback: Any = None
-        if settings.llm_fallback_enabled and settings.google_cloud_project:
+        if settings.llm_provider == "gnani" and settings.gnani_llm_base_url and settings.gnani_llm_model:
+            from app.llm.openai_compat import OpenAICompatLLM
+
+            # Gnani leads; Sarvam answers when it fails or is slow.
+            primary, fallback = OpenAICompatLLM(
+                "gnani", settings.gnani_llm_api_key or settings.gnani_api_key, settings.gnani_llm_model,
+                settings.gnani_llm_base_url, settings.gnani_llm_auth_header), primary
+        if fallback is None and settings.llm_fallback_enabled and settings.google_cloud_project:
             from app.llm.gemini import GeminiLLM
 
             fallback = GeminiLLM(settings.llm_fallback_model, settings.google_cloud_project,
@@ -198,7 +220,8 @@ def build_container(settings: Settings, plugin_factory: PluginFactory | None = N
         voicelink = (VoiceLinkClient(settings.voice_link_base_url, settings.voice_link_username,
                                      settings.voice_link_password)
                      if settings.voice_link_username else None)
-        voice_id = (f"rumik_{settings.rumik_model}" if settings.tts_primary == "rumik"
+        voice_id = (f"gnani_{settings.gnani_tts_model}_{settings.gnani_tts_voice_hi}"
+                    if settings.tts_primary == "gnani" and settings.gnani_api_key
                     else f"sarvam_{settings.sarvam_tts_model.replace(':', '')}_{settings.sarvam_tts_speaker}")
     else:
         primary, fallback, voicelink, voice_id = DemoLLM("sarvam"), None, None, "fake"

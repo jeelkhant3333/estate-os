@@ -39,6 +39,12 @@ class DeepgramSTT:
     async def send_audio(self, mulaw_8k: bytes) -> None:
         await self._ws.send(mulaw_8k)
 
+    async def flush(self) -> None:
+        """The caller stopped talking: ask Deepgram to finalise what it has heard now, rather than
+        after its own endpointing (finals otherwise arrived 1-1.5 s after speech end)."""
+        if self._ws is not None:
+            await self._ws.send(json.dumps({"type": "Finalize"}))
+
     async def _keepalive(self) -> None:
         while True:
             await asyncio.sleep(5)

@@ -82,11 +82,24 @@ def test_silence_prompts_stop_once_the_caller_speaks_again():
         s.silence.first_prompt_s = s.silence.interval_s = 0.05
         s.silence.arm()
         loop = asyncio.create_task(s._event_loop())
-        await asyncio.sleep(0.07)  # one prompt
+        await asyncio.sleep(0.12)  # a quiet first tick, then one prompt
         await s.caller.events.put(SpeechStarted(0.0))
         await asyncio.sleep(0.3)
         loop.cancel()
         return speech.started
 
     started = asyncio.run(scenario())
-    assert started == [PHRASES["silence_prompt"]]
+    assert started == [PHRASES["still_there"]]
+
+
+def test_silence_never_says_it_could_not_hear_the_caller():
+    """The first quiet spell is waited out, not met with "sorry, I couldn't hear you"."""
+    async def scenario():
+        s, speech = session(ScriptedLLM())
+        s.silence.first_prompt_s = s.silence.interval_s = 0.05
+        s.silence.arm()
+        await asyncio.sleep(0.07)  # first tick only
+        s.silence.disarm()
+        return speech.started
+
+    assert asyncio.run(scenario()) == []

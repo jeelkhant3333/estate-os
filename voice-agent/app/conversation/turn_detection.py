@@ -7,6 +7,8 @@ heuristic until the turn-detection benchmark (C6) picks a model.
 
 from __future__ import annotations
 
+import re
+
 import asyncio
 from dataclasses import dataclass
 from typing import Callable, Protocol
@@ -27,6 +29,10 @@ CONTINUATION_WORDS = frozenset({
     "aur", "lekin", "matlab", "ki", "mujhe", "mera", "kyunki", "ya", "mein", "se", "ko", "ani", "pan",
     "mhanje", "mala", "majha", "karan", "kinva", "sathi", "madhye",
 })
+
+
+def _norm(text: str) -> str:
+    return " ".join(re.sub(r"[^\w\s]", " ", (text or "").lower()).split())
 
 
 def looks_incomplete(text: str) -> bool:
@@ -86,6 +92,8 @@ class TurnDetector:
 
     def _clear(self) -> None:
         self._finals: list[str] = []
+        if not hasattr(self, "_last_commit"):
+            self._last_commit: tuple[str, float] | None = None
         self._partial = ""
         self._language: str | None = None
         self._utterance_start: float | None = None
@@ -113,6 +121,10 @@ class TurnDetector:
         self._partial = text
 
     def on_final(self, text: str, language: str | None = None) -> None:
+        if self._is_late_repeat(text):
+            # The turn was committed on partial text before this final arrived; it is the same words,
+            # not a new utterance (it once made Riya answer every Deepgram sentence twice).
+            return
         if text.strip():
             self._finals.append(text.strip())
             try:
@@ -188,4 +200,16 @@ class TurnDetector:
             final_at=self._final_at,
         )
         self._clear()
+        self._last_commit = (_norm(text), self._now())
         await self.turns.put(turn)
+
+    def _is_late_repeat(self, text: str) -> bool:
+        if self._last_commit is None or self._utterance_start is not None or self.speaking:
+            return False  # the caller has started a new utterance since the commit
+        committed, at = self._last_commit
+        try:
+            fresh = self._now() - at < 4.0
+        except RuntimeError:
+            return False
+        final = _norm(text)
+        return fresh and bool(final) and (final in committed or committed in final)

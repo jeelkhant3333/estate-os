@@ -8,7 +8,6 @@ evidence for the price guard: a rupee figure the model says must have come from 
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Literal
@@ -19,7 +18,6 @@ from app.crm.client import CrmError
 from app.domain.base import Tool, ToolOutcome
 from app.llm.base import ToolSpec
 
-from .money import spoken_range
 from .timeutil import as_utc_iso, clamp_to_calling_hours, now_ist, parse_when, spoken_time
 
 if TYPE_CHECKING:
@@ -33,28 +31,6 @@ PROPERTY_TYPES = ["APARTMENT", "VILLA", "PLOT", "COMMERCIAL"]
 
 class _Args(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
-
-class SearchArgs(_Args):
-    budget_max_inr: int | None = Field(default=None, ge=100_000, le=10_000_000_000)
-    budget_min_inr: int | None = Field(default=None, ge=0, le=10_000_000_000)
-    bhk: list[int] = Field(default_factory=list, max_length=4)
-    locality: str | None = Field(default=None, max_length=80)
-    property_type: Literal["APARTMENT", "VILLA", "PLOT", "COMMERCIAL"] | None = None
-
-
-class ProjectArgs(_Args):
-    project: str = Field(min_length=1, max_length=80)
-
-
-class PriceArgs(_Args):
-    project: str = Field(min_length=1, max_length=80)
-    bhk: int = Field(ge=0, le=10)
-
-
-class AvailabilityArgs(_Args):
-    project: str = Field(min_length=1, max_length=80)
-    bhk: int | None = Field(default=None, ge=0, le=10)
 
 
 class KnowledgeArgs(_Args):
@@ -157,6 +133,7 @@ class ToolBox:
                                        "instruction": "Apologise briefly and say our team will confirm."})
             self.s.tool_log.append({"tool": name, "args": arguments,
                                     "result": {k: v for k, v in outcome.content.items() if k != "chunks"}})
+            # The uploaded documents are the only source of facts, prices included.
             self.s.guard.add_result(outcome.content)
             self.c.advance()
             return outcome
@@ -183,64 +160,6 @@ class ToolBox:
 
     # ---------------------------------------------------------------- inventory
 
-    async def search_properties(self, a: SearchArgs) -> ToolOutcome:
-        r = self.s.requirements
-        r.budget_max = a.budget_max_inr or r.budget_max
-        r.budget_min = a.budget_min_inr or r.budget_min
-        r.bhk = a.bhk or r.bhk
-        r.locality = a.locality or r.locality
-        r.property_type = a.property_type or r.property_type
-        budget = a.budget_max_inr or a.budget_min_inr or r.budget_max
-        matches = await self.c.plugin.crm.search_units(budget, a.bhk or r.bhk, a.locality or r.locality, limit=3)
-        options = [{"project": m["projectName"], "projectId": m["projectId"], "locality": m.get("localityName"),
-                    "bhk": m["bhk"], "price": spoken_range(m["priceMinInr"], m["priceMaxInr"]),
-                    "priceMinInr": m["priceMinInr"], "priceMaxInr": m["priceMaxInr"],
-                    "availableUnits": m["availableUnits"], "possession": m.get("possessionDate")} for m in matches]
-        self.s.recommended = options
-        self.s.budget_fits = bool(budget) and any(o["priceMinInr"] <= budget * 1.1 for o in options)
-        self.s.action("search_properties")
-        if not options:
-            return ToolOutcome({"options": [], "instruction": "Nothing available matches; ask which requirement "
-                                                              "they could relax, or offer a callback."})
-        return ToolOutcome({"options": options, "note": "Recommend at most two."})
-
-    async def get_project_info(self, a: ProjectArgs) -> ToolOutcome:
-        project = self._project(a.project)
-        if project is None:
-            return self._unknown_project(a.project)
-        info = await self.c.plugin.crm.get_project(project["id"])
-        self.s.requirements.project_id = self.s.requirements.project_id or project["id"]
-        self.s.requirements.project_name = self.s.requirements.project_name or info.get("name")
-        return ToolOutcome({"project": info.get("name"), "projectId": info.get("id"),
-                            "locality": info.get("localityName"), "possession": info.get("possessionDate"),
-                            "reraId": info.get("reraId"),
-                            "availableConfigurations": [{"bhk": u.get("bhk"), "carpetAreaSqft": u.get("carpetAreaSqft")}
-                                                        for u in info.get("unitTypes", [])]})
-
-    async def get_price(self, a: PriceArgs) -> ToolOutcome:
-        project = self._project(a.project)
-        if project is None:
-            return self._unknown_project(a.project)
-        price = await self.c.plugin.crm.get_price(project["id"], a.bhk)
-        self.s.recommended = self.s.recommended or [{"project": project["name"], "bhk": a.bhk}]
-        if price is None:
-            return ToolOutcome({"project": project["name"], "bhk": a.bhk, "available": False,
-                                "instruction": "This configuration is not available; do not offer it."})
-        return ToolOutcome({"project": project["name"], "bhk": a.bhk, "available": True,
-                            "price": spoken_range(price["priceMinInr"], price["priceMaxInr"]),
-                            "priceMinInr": price["priceMinInr"], "priceMaxInr": price["priceMaxInr"],
-                            "availableUnits": price.get("availableUnits")})
-
-    async def get_availability(self, a: AvailabilityArgs) -> ToolOutcome:
-        project = self._project(a.project)
-        if project is None:
-            return self._unknown_project(a.project)
-        result = await self.c.plugin.crm.get_availability(project["id"], a.bhk)
-        units = int(result.get("availableUnits") or 0)
-        return ToolOutcome({"project": project["name"], "bhk": a.bhk, "availableUnits": units, "available": units > 0})
-
-    # ---------------------------------------------------------------- knowledge
-
     async def ask_knowledge(self, a: KnowledgeArgs) -> ToolOutcome:
         project = self._project(a.project) if a.project else None
         project_id = project["id"] if project else self.s.requirements.project_id
@@ -252,23 +171,49 @@ class ToolBox:
             if "UNANSWERED" not in self.s.escalations:
                 self.s.escalations.append("UNANSWERED")
             return ToolOutcome({"found": False, "lookup": result.status,
-                                "instruction": "Say a property expert will confirm this; do not guess."})
+                                "instruction": "Say a property expert will confirm this; do not guess. Do not look"
+                                               " this question up again: the documents do not have it."})
         for chunk in result.chunks:
             doc = str(chunk.get("documentId"))
             if doc and doc not in self.s.citations:
                 self.s.citations.append(doc)
-        return ToolOutcome({"found": True, "inventoryAuthoritative": "crm", "chunks": [
+        return ToolOutcome({"found": True, "chunks": [
             {"documentId": ch.get("documentId"), "title": ch.get("title"), "docType": ch.get("docType"),
              "page": ch.get("page"), "section": ch.get("sectionPath"), "text": ch.get("content")}
             for ch in result.chunks]})
 
     # ---------------------------------------------------------------- visits
 
+    def _off_focus(self, project: dict[str, Any]) -> ToolOutcome | None:
+        """Visits are only for the project the caller is talking about, unless they just named another."""
+        focus = self.s.focus_project_id
+        if not focus or str(project["id"]) == focus:
+            return None
+        named = self.c.mentioned_project(self.s.last_caller_text)
+        if named is not None and str(named["id"]) == str(project["id"]):
+            return None
+        current = next((p["name"] for p in (self.c.plugin.catalog or {}).get("projects", []) if str(p["id"]) == focus),
+                       "the project they asked about")
+        return ToolOutcome({"error": "not_the_callers_project", "callerIsAskingAbout": current,
+                            "instruction": f"The caller is talking about {current}. Offer or book a visit only for "
+                                           f"{current}, unless they ask about another project."})
+
     async def get_visit_slots(self, a: SlotArgs) -> ToolOutcome:
         project = self._project(a.project)
         if project is None:
             return self._unknown_project(a.project)
-        if not a.preferred_day and not self.s.wants_visit_now:
+        if (off := self._off_focus(project)) is not None:
+            return off
+        about_existing_visit = self.s.call_type == "VISIT_REMINDER" or bool(self.s.context.get("visit"))
+        if not a.preferred_day and not self.s.wants_visit_now and not about_existing_visit:
+            if not self.s.slots_offered_for:
+                # "Show me the Baner one" asks about the project, not for a visit. No "slots" key: an empty
+                # list was once read out as "no slots are available".
+                return ToolOutcome({"project": project["name"], "visitTimesLookedUp": False,
+                                    "instruction": "Visit times exist but were not looked up, because the caller has "
+                                                   "not asked for a visit. Never say no slots are available. Answer "
+                                                   "what they asked, then ask once whether they would like to visit; "
+                                                   "call get_visit_slots after they say yes."})
             if self.s.visit_deferred:
                 return ToolOutcome({"project": project["name"], "slots": [],
                                     "instruction": "The caller wants details first. Do not offer visit times now; "
@@ -323,6 +268,8 @@ class ToolBox:
         project = self._project(a.project)
         if project is None:
             return self._unknown_project(a.project)
+        if (off := self._off_focus(project)) is not None:
+            return off
         offered = self._offered(a.slot_start)
         if offered is None:
             if self.s.offered_slots:
@@ -496,19 +443,11 @@ class ToolBox:
     def tools(self) -> list[Tool]:
         t = self._tool
         return [
-            t("search_properties", "Find available homes matching the caller's budget, BHK and locality (top 3).",
-              _schema({"budget_max_inr": {**_INT, "description": "Upper budget in rupees, e.g. 12000000 for 1.2 crore."},
-                       "budget_min_inr": _INT, "bhk": {"type": "array", "items": _INT},
-                       "locality": _STR, "property_type": {"type": "string", "enum": PROPERTY_TYPES}}),
-              SearchArgs, self.search_properties),
-            t("get_project_info", "A project's locality, possession date, RERA id and available configurations.",
-              _schema({"project": _PROJECT}, ["project"]), ProjectArgs, self.get_project_info),
-            t("get_price", "Current price range for one configuration (the only source of prices).",
-              _schema({"project": _PROJECT, "bhk": _INT}, ["project", "bhk"]), PriceArgs, self.get_price),
-            t("get_availability", "How many units are available now, optionally for one BHK.",
-              _schema({"project": _PROJECT, "bhk": _INT}, ["project"]), AvailabilityArgs, self.get_availability),
-            t("ask_knowledge", "Brochure/FAQ/price-sheet knowledge: amenities, specifications, payment plan, charges, "
-                               "RERA, location. Not for unit prices.",
+            # The only source of facts. Projects, prices, sizes and availability are not looked up in
+            # the CRM: the agent answers from the uploaded documents or says an expert will confirm.
+            t("ask_knowledge", "The uploaded documents, the only source of facts: projects, locations, configurations, "
+                               "prices, sizes, availability, possession, RERA, amenities, specifications, "
+                               "payment plan, charges and FAQs.",
               _schema({"question": {**_STR, "description": "Short English keywords, e.g. 'clubhouse swimming pool'."},
                        "project": _PROJECT,
                        "doc_types": {"type": "array", "items": {"type": "string", "enum": DOC_TYPES}}}, ["question"]),

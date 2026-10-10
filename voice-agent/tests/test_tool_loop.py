@@ -155,3 +155,51 @@ def test_the_last_hop_still_declares_tools():
     s, _ = session(llm, StubConversation(tool_list=[_tool(run, filler=None)]))
     asyncio.run(s._respond("q", "en"))
     assert llm.tools_per_call and all(n == 1 for n in llm.tools_per_call)
+
+
+def test_one_filler_per_turn_however_many_lookups():
+    async def run(args):
+        return ToolOutcome({"ok": True})
+
+    llm = ScriptedLLM([call("lookup", q="a"), call("lookup", q="b"), say("Here it is.")])
+    s, speech = session(llm, StubConversation(tool_list=[_tool(run)]))
+    asyncio.run(s._respond("q", "en"))
+    assert speech.started.count(PHRASES["filler_lookup"]) == 1
+
+
+def test_the_callers_words_stop_riya_even_without_a_voice_onset():
+    """Never talk over the caller: recognised words while Riya speaks interrupt her at once."""
+    from app.conversation.events import PartialTranscript
+
+    async def scenario():
+        s, speech = session(ScriptedLLM([say("a long answer")]), StubConversation())
+        speech._active = 1  # Riya is mid-sentence; the voice detector saw nothing (echo threshold)
+        stopped = []
+
+        async def interrupt():
+            stopped.append(True)
+        s._interrupt = interrupt
+        s._words_while_speaking("नहीं रुकिए, मुझे 3 BHK चाहिए")
+        await asyncio.sleep(0.05)
+        s._words_while_speaking("हाँ")  # a backchannel alone would not have stopped her
+        return stopped
+    assert asyncio.run(scenario()) == [True]
+
+
+def test_an_unexpected_value_never_throws_away_the_post_call_summary():
+    from app.domain.real_estate.extraction import Extraction
+    e = Extraction.model_validate({"intent": "INVESTMENT", "property_type": "corporate office", "sentiment": "curious",
+                                   "summary": "wants an office"})
+    assert (e.intent, e.property_type, e.sentiment, e.summary) == ("BUY", "COMMERCIAL", None, "wants an office")
+
+
+def test_running_out_of_lookups_is_never_silence():
+    """The model keeps searching an empty knowledge base: the caller hears a line, not dead air."""
+    async def run(args):
+        return ToolOutcome({"found": False})
+
+    llm = ScriptedLLM([call("lookup", q=str(i)) for i in range(10)])
+    s, speech = session(llm, StubConversation(tool_list=[_tool(run, filler=None)]), max_tool_hops=2)
+    asyncio.run(s._respond("what are the amenities", "en"))
+    assert speech.started == [PHRASES["no_answer"]]
+    assert s.metrics.unanswered == 1

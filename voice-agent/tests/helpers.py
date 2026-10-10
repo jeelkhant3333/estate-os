@@ -18,6 +18,7 @@ PHRASES = {
     "still_there": "Are you still there?",
     "closing": "Goodbye.",
     "transfer": "Someone will call you back.",
+    "no_answer": "Our expert will confirm that.",
     "filler_lookup": "Let me look that up.",
 }
 

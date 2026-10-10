@@ -191,9 +191,13 @@ public class VoiceCatalogService {
     }
     params.put("limit", limit);
 
+    // Within budget first, the closest to the budget first; then the near misses above it, cheapest
+    // first. Ranking by distance alone put projects over the budget ahead of ones within it.
     String order =
         budget != null
-            ? " ORDER BY abs(min(u.price) - :budget) ASC, available DESC"
+            ? " ORDER BY (min(u.price) <= :budget) DESC,"
+                + " CASE WHEN min(u.price) <= :budget THEN -min(u.price) ELSE min(u.price) END ASC,"
+                + " available DESC"
             : " ORDER BY min(u.price) ASC, available DESC";
     if (budget != null) params.put("budget", budget);
 
@@ -217,6 +221,8 @@ public class VoiceCatalogService {
           row.put("bhk", rs.getBigDecimal("bhk"));
           row.put("priceMinInr", rs.getBigDecimal("price_min"));
           row.put("priceMaxInr", rs.getBigDecimal("price_max"));
+          // Whether the cheapest available unit is within the budget (not just within the headroom).
+          row.put("withinBudget", budget == null || rs.getBigDecimal("price_min").compareTo(budget) <= 0);
           row.put("availableUnits", rs.getInt("available"));
           row.put("possessionDate", rs.getString("possession_date"));
           return row;

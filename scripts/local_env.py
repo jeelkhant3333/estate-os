@@ -2,7 +2,7 @@
 
     python3 scripts/local_env.py [--keys .env.local-secrets] [--public-url https://xxxx.ngrok-free.app]
 
-Provider keys (Sarvam, Deepgram, Rumik, VoiceLink, OpenAI) are read from --keys. Internal secrets
+Provider keys (Sarvam, Deepgram, VoiceLink, OpenAI) are read from --keys. Internal secrets
 (database password, JWT, service account, inter-service tokens) are generated once and kept on
 re-runs. Both files are git-ignored; never commit either.
 """
@@ -14,7 +14,7 @@ import secrets
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FROM_KEYS = ["SARVAM_API_KEY", "DEEPGRAM_API_KEY", "RUMIK_API_KEY", "LLM_FALLBACK_MODEL", "GOOGLE_CLOUD_PROJECT",
+FROM_KEYS = ["SARVAM_API_KEY", "DEEPGRAM_API_KEY", "LLM_FALLBACK_MODEL", "GOOGLE_CLOUD_PROJECT",
              "GOOGLE_CLOUD_LOCATION", "VOICE_LINK_BASE_URL", "VOICE_LINK_USERNAME", "VOICE_LINK_PASSWORD",
              "VOICE_LINK_DID_NUMBER", "VOICE_LINK_CLIENT_ID", "VOICE_LINK_WEBHOOK_TOKEN", "BUILDER_NAME",
              "DEFAULT_OUTBOUND_LANGUAGE", "OPENAI_API_KEY", "OPENAI_EXTRACTION_MODEL", "SERVICE_ACCOUNT_EMAIL"]
@@ -29,7 +29,7 @@ TUNING = {
     "SARVAM_STT_STREAM_TYPE": "fast", "SARVAM_STT_MODE": "codemix", "SARVAM_STT_LANGUAGE_CODE": "auto",
     "SARVAM_STT_STREAMING_LANGUAGE_CODE": "unknown", "SARVAM_STT_HIGH_VAD_SENSITIVITY": "false",
     "BARGE_IN_MIN_SPEECH_MS": "600",
-    "STT_FLUSH_AFTER_MS": "150", "RUMIK_MODEL": "mulberry", "RUMIK_SPEED": "1.2", "TTS_OUTPUT_GAIN": "1.0",
+    "STT_FLUSH_AFTER_MS": "150", "TTS_OUTPUT_GAIN": "1.0",
     "VOICE_LINK_CAPTURE_MESSAGES": "20", "DEFAULT_INBOUND_LANGUAGE": "hi", "LANGUAGE_SWITCH_CONFIDENCE": "0.6",
 }
 

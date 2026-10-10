@@ -80,27 +80,36 @@ class Settings(BaseSettings):
     sarvam_tts_pace: float = 1.0
     sarvam_tts_preprocessing: bool = True
 
-    # Primary TTS: sarvam_streaming (Bulbul v3, fallback Rumik) or rumik (Mulberry, fallback Bulbul REST)
-    tts_primary: Literal["sarvam_streaming", "rumik"] = "sarvam_streaming"
+    # Primary TTS: sarvam_streaming (Bulbul v3) or gnani (Vachana, Bulbul behind it)
+    tts_primary: Literal["sarvam_streaming", "gnani"] = "sarvam_streaming"
 
     # Deepgram
+    # Primary STT: sarvam (Saaras v3 streaming, Deepgram as fallback) or deepgram (Nova-3, Sarvam as fallback).
+    stt_primary: Literal["sarvam", "deepgram", "gnani"] = "sarvam"
     deepgram_api_key: str = ""
     deepgram_model: str = "nova-3"
 
-    # Rumik
-    rumik_api_key: str = ""
-    rumik_base_url: str = "https://silk-api.rumik.ai"
-    rumik_model: str = "mulberry"
-    rumik_speaker: str = ""
-    # CL-012: Rumik has no speed setting; its audio is sped up here without changing pitch (1.0 = off)
-    rumik_speed: float = 1.2
+    # Gnani Vachana (experiment): STT_PRIMARY=gnani, TTS_PRIMARY=gnani and/or LLM_PROVIDER=gnani.
+    # Sarvam stays behind each of them as the fallback.
+    gnani_api_key: str = ""
+    gnani_stt_url: str = "wss://api.vachana.ai/stt/v3/stream"
+    gnani_stt_min_silence_ms: int = 500
+    gnani_stt_vad_threshold: float = 0.7
+    gnani_tts_url: str = "wss://api.vachana.ai/api/v1/tts"
+    gnani_tts_model: str = "timbre-v2.5"
+    gnani_tts_voice_hi: str = "Nalini"
+    gnani_tts_voice_mr: str = "Zahira"
+    gnani_tts_voice_en: str = "Kaveri"
+    gnani_tts_speed: float = 1.0
+    # The conversation model: sarvam (default) or gnani (Evon, an OpenAI-compatible API).
+    llm_provider: Literal["sarvam", "gnani"] = "sarvam"
+    gnani_llm_base_url: str = ""
+    gnani_llm_model: str = ""
+    gnani_llm_api_key: str = ""  # empty: GNANI_API_KEY
+    gnani_llm_auth_header: str = "Authorization"
+
     # Linear gain applied to outgoing telephony audio. 1.0 leaves the TTS level untouched.
     tts_output_gain: float = 1.0
-    rumik_voice_description: str = (
-        "a warm, professional female voice in her late 20s from Pune, natural "
-        "conversational pacing, clear Marathi and Hindi with natural English words, "
-        "polite customer-care register, confident but not salesy"
-    )
 
     # LLM
     llm_primary_model: str = "sarvam-105b-conversations"
@@ -243,13 +252,12 @@ class Settings(BaseSettings):
         return max(1, int(self.sarvam_llm_rate_limit_per_min * self.governor_safety_fraction))
 
 
-@lru_cache
-
 def cost_prices(s: "Settings"):
     from app.observability.cost import Prices
     return Prices(s.cost_stt_per_hour, s.cost_tts_per_1k_chars, s.cost_llm_input_per_m,
                   s.cost_llm_cached_per_m, s.cost_llm_output_per_m, s.cost_currency)
 
 
+@lru_cache
 def get_settings() -> Settings:
     return Settings()

@@ -38,9 +38,19 @@ _PHRASES: dict[str, dict[Lang, str]] = {
     },
     # ---- engine phrases (app/domain/base.py ENGINE_PHRASES)
     "thinking": {
-        "en": "One moment, let me check.",
-        "hi": "एक मिनट, मैं देखती हूँ।",
-        "mr": "एक मिनिट, मी बघते.",
+        "en": "Sure, one moment.",
+        "hi": "जी, बस एक पल।",
+        "mr": "हो, एक क्षण.",
+    },
+    "thinking_2": {
+        "en": "Hmm, let me check.",
+        "hi": "हम्म, मैं देखती हूँ।",
+        "mr": "हम्म, मी बघते.",
+    },
+    "thinking_3": {
+        "en": "Okay, just a moment.",
+        "hi": "ठीक है, बस एक पल।",
+        "mr": "ठीक आहे, एक क्षण.",
     },
     "silence_prompt": {
         "en": "Sorry, I couldn't hear you. Could you say that again?",
@@ -62,21 +72,71 @@ _PHRASES: dict[str, dict[Lang, str]] = {
         "hi": "मेरी तरफ़ से थोड़ी दिक्कत आ रही है। हमारे प्रॉपर्टी एक्सपर्ट जल्द ही आपको कॉल करेंगे।",
         "mr": "माझ्याकडे थोडी अडचण येत आहे. आमचे प्रॉपर्टी एक्सपर्ट तुम्हाला लवकरच कॉल करतील.",
     },
+    "no_answer": {
+        "en": "I'll have our property expert confirm that for you. What else would you like to know?",
+        "hi": "यह मैं हमारे प्रॉपर्टी एक्सपर्ट से कन्फ़र्म करवा दूँगी। और क्या जानना चाहेंगे?",
+        "mr": "हे मी आमच्या प्रॉपर्टी एक्सपर्टकडून कन्फर्म करून घेते. अजून काय जाणून घ्यायचं आहे?",
+    },
     # ---- tool fillers, played while a lookup runs
     "filler_search": {
-        "en": "Just a second, let me check what's available.",
-        "hi": "एक सेकंड, मैं चेक करती हूँ।",
-        "mr": "एक सेकंद, मी चेक करते.",
+        "en": "Sure, let me look.",
+        "hi": "जी, मैं अभी देखती हूँ।",
+        "mr": "हो, मी आत्ता बघते.",
+    },
+    "filler_search_2": {
+        "en": "Okay, checking the options for you.",
+        "hi": "ठीक है, मैं आपके लिए options देख रही हूँ।",
+        "mr": "ठीक आहे, मी तुमच्यासाठी options बघते.",
+    },
+    "filler_search_3": {
+        "en": "Just a moment, let me check.",
+        "hi": "बस एक पल, मैं देख रही हूँ।",
+        "mr": "एक क्षण, मी बघते.",
+    },
+    "filler_search_4": {
+        "en": "Alright, let me find that.",
+        "hi": "अच्छा, मैं अभी पता करती हूँ।",
+        "mr": "बरं, मी लगेच बघते.",
     },
     "filler_knowledge": {
-        "en": "One moment, let me look that up.",
-        "hi": "एक सेकंड, मैं जानकारी देखती हूँ।",
-        "mr": "एक सेकंद, मी माहिती बघते.",
+        "en": "Sure, let me look that up.",
+        "hi": "जी, मैं जानकारी देखती हूँ।",
+        "mr": "हो, मी माहिती बघते.",
+    },
+    "filler_knowledge_2": {
+        "en": "One moment, checking the details.",
+        "hi": "बस एक पल, मैं details देख रही हूँ।",
+        "mr": "एक क्षण, मी details बघते.",
+    },
+    "filler_knowledge_3": {
+        "en": "Okay, let me tell you.",
+        "hi": "ठीक है, मैं अभी बताती हूँ।",
+        "mr": "ठीक आहे, मी लगेच सांगते.",
+    },
+    "filler_knowledge_4": {
+        "en": "Alright, let me find the details.",
+        "hi": "अच्छा, मैं ज़रा जानकारी निकालती हूँ।",
+        "mr": "बरं, मी माहिती काढते.",
     },
     "filler_slots": {
-        "en": "Let me check the visit slots.",
-        "hi": "एक सेकंड, मैं विज़िट के स्लॉट देखती हूँ।",
-        "mr": "एक सेकंद, मी व्हिजिटचे स्लॉट बघते.",
+        "en": "Sure, let me check the visit slots.",
+        "hi": "जी, मैं visit के slots देखती हूँ।",
+        "mr": "हो, मी visit चे slots बघते.",
+    },
+    "filler_slots_2": {
+        "en": "Okay, checking the available times.",
+        "hi": "ठीक है, मैं available time देख रही हूँ।",
+        "mr": "ठीक आहे, मी available वेळ बघते.",
+    },
+    "filler_slots_3": {
+        "en": "One moment, let me see the visit timings.",
+        "hi": "बस एक पल, मैं visit का time देखती हूँ।",
+        "mr": "एक क्षण, मी visit ची वेळ बघते.",
+    },
+    "filler_slots_4": {
+        "en": "Alright, checking the slots.",
+        "hi": "अच्छा, मैं slots देख रही हूँ।",
+        "mr": "बरं, मी slots बघते.",
     },
     "filler_booking": {
         "en": "Okay, booking that for you now.",
@@ -120,6 +180,11 @@ LOCALITY_NAMES: dict[str, str] = {
     "Wagholi": "वाघोली", "Undri": "उंड्री", "Koregaon Park": "कोरेगाव पार्क", "Tathawade": "ताथवडे",
     "Sus": "सूस", "Dhanori": "धानोरी", "Mundhwa": "मुंढवा", "Warje": "वारजे", "Dhayari": "धायरी",
     "NIBM Road": "एनआयबीएम रोड", "Riya": "रिया",
+    # The projects, so the voice never reads them with an English accent mid-sentence.
+    "Skyline Crest": "स्काईलाइन क्रेस्ट", "Greenleaf Residency": "ग्रीनलीफ रेज़िडेंसी", "Greenleaf": "ग्रीनलीफ",
+    "Aurum Heights": "ऑरम हाइट्स", "Riverstone Towers": "रिवरस्टोन टावर्स",
+    "Lotus Enclave": "लोटस एन्क्लेव", "Orchid Park": "ऑर्किड पार्क", "Metro One": "मेट्रो वन",
+    "Bayview Residences": "बेव्यू रेज़िडेंसेज़", "Cedar Grove": "सीडर ग्रोव", "XYZ Realty": "एक्स वाय ज़ेड रियल्टी",
 }
 
 
@@ -132,6 +197,12 @@ class RealEstatePhrases:
 
     def keys(self) -> tuple[str, ...]:
         return tuple(_PHRASES)
+
+    def variants(self, key: str) -> tuple[str, ...]:
+        """The interchangeable versions of a phrase (key, key_2, key_3, ...), rotated by the engine so
+        the same filler is not heard every time."""
+        found = [key] + [f"{key}_{n}" for n in range(2, 10) if f"{key}_{n}" in _PHRASES]
+        return tuple(found)
 
     def render(self, key: str, lang: Lang) -> str:
         entry = _PHRASES.get(key)

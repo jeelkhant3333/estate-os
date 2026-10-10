@@ -25,6 +25,23 @@ log = logging.getLogger(__name__)
 _EMPTY = ("", "null", "unknown", "NA")
 
 
+_ALLOWED = {
+    "intent": {"BUY", "RENT"},
+    "property_type": {"APARTMENT", "VILLA", "PLOT", "COMMERCIAL"},
+    "purpose": {"SELF_USE", "INVESTMENT"},
+    "possession_preference": {"READY", "UNDER_CONSTRUCTION", "ANY"},
+    "sentiment": {"POSITIVE", "NEUTRAL", "NEGATIVE"},
+}
+_ALIASES = {
+    "intent": {"INVESTMENT": "BUY", "INVEST": "BUY", "PURCHASE": "BUY", "BUYING": "BUY", "SALE": "BUY",
+               "LEASE": "RENT", "RENTAL": "RENT", "RENTING": "RENT"},
+    "property_type": {"FLAT": "APARTMENT", "APARTMENTS": "APARTMENT", "HOUSE": "VILLA", "BUNGALOW": "VILLA",
+                      "ROW_HOUSE": "VILLA", "LAND": "PLOT", "OFFICE": "COMMERCIAL", "SHOP": "COMMERCIAL",
+                      "CORPORATE_OFFICE": "COMMERCIAL", "WAREHOUSE": "COMMERCIAL", "RETAIL": "COMMERCIAL"},
+    "purpose": {"SELF": "SELF_USE", "END_USE": "SELF_USE", "OWN_USE": "SELF_USE", "INVEST": "INVESTMENT"},
+}
+
+
 class Extraction(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -48,6 +65,19 @@ class Extraction(BaseModel):
     @classmethod
     def _empty_is_none(cls, value: Any) -> Any:
         return None if value in _EMPTY else value
+
+    @field_validator("intent", "property_type", "purpose", "possession_preference", "sentiment", mode="before")
+    @classmethod
+    def _known_value(cls, value: Any, info: ValidationInfo) -> Any:
+        """Close answers are mapped ("INVESTMENT" is a purchase); anything else is unknown, never a
+        reason to throw away the whole post-call extraction."""
+        if value is None:
+            return None
+        v = re.sub(r"[^A-Z]+", "_", str(value).upper()).strip("_")
+        aliases = _ALIASES.get(info.field_name, {})
+        v = aliases.get(v, v)
+        allowed = _ALLOWED[info.field_name]
+        return v if v in allowed else None
 
     @field_validator("bhk", "questions_asked", "unanswered_questions", mode="before")
     @classmethod

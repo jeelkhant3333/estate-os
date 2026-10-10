@@ -21,6 +21,7 @@ import { useAuth } from "../hooks/useAuth";
 import { CustomSelect } from "../components/CustomSelect";
 const navigation = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { to: "/projects", label: "Projects & inventory", icon: Building2 },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/calls", label: "Conversations", icon: Phone },
   { to: "/recommendations", label: "Recommendations", icon: Sparkles },

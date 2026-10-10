@@ -11,6 +11,12 @@ import { useApi } from "../hooks/useApi";
 import { useAuth } from "../hooks/useAuth";
 import { Async, Badge, Empty, PageHeader } from "../components/ui";
 import { date, label, list } from "../utils/format";
+function callTime(seconds?: number) {
+  const minutes = Math.round((seconds || 0) / 60);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
 export function Dashboard() {
   const query = useApi("/dashboard");
   const { session } = useAuth();
@@ -35,6 +41,12 @@ export function Dashboard() {
       "siteVisitsBooked",
       CalendarDays,
       "Appointments across your workspace",
+    ],
+    [
+      "Total call time",
+      "totalCallSeconds",
+      Phone,
+      `Across ${m.callsHandled ?? 0} calls handled`,
     ],
   ];
   return (
@@ -69,7 +81,11 @@ export function Dashboard() {
                   <Icon size={18} />
                 </span>
               </div>
-              <strong>{m[String(key)] ?? 0}</strong>
+              <strong>
+                {key === "totalCallSeconds"
+                  ? callTime(m.totalCallSeconds)
+                  : (m[String(key)] ?? 0)}
+              </strong>
               <small>{String(help)}</small>
             </div>
           ))}

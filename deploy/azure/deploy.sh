@@ -340,6 +340,19 @@ case "${1:-all}" in
     # Voice agent only: rebuild its image and roll it out.
     acr_creds; build_agent_image; deploy_agent; wire_together; urls
     ;;
+  web)
+    # CRM web only: rebuild the bundle against the deployed API and roll it out.
+    acr_creds; build_web_image "https://$(fqdn "$CRM_APP")"; deploy_web; urls
+    ;;
+  crm)
+    # CRM API and web only: the voice agent and knowledge service keep running untouched.
+    # The apps already exist, so the CRM gets its real URLs up front instead of placeholders that
+    # wire_together would fix, which would also restart the agent.
+    VOICE_AGENT_SERVICE_URL="https://$(fqdn "$AGENT_APP")"
+    CORS_ALLOWED_ORIGINS="https://$(fqdn "$WEB_APP")"
+    acr_creds; build_crm_image; deploy_crm
+    build_web_image "https://$(fqdn "$CRM_APP")"; deploy_web; urls
+    ;;
   images)
     acr_creds
     build_crm_image; build_agent_image; build_rag_image
@@ -362,5 +375,5 @@ case "${1:-all}" in
     urls
     echo "Secrets were written to azure.env. Keep that file out of source control."
     ;;
-  *) echo "usage: $0 [all|images|agent|urls]" >&2; exit 1 ;;
+  *) echo "usage: $0 [all|images|crm|web|agent|urls]" >&2; exit 1 ;;
 esac

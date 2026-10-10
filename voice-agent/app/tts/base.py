@@ -1,4 +1,4 @@
-"""TTS interface and controlled Rumik → Sarvam fallback (spec sections 6, 30)."""
+"""TTS interface and controlled primary → fallback switch (spec sections 6, 30)."""
 
 from __future__ import annotations
 
